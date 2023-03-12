@@ -4,19 +4,20 @@ import (
 	"fmt"
 	"runtime"
 	"sync"
+	
 )
 
 func main(){
-	eve := make(chan int)
-	odd:= make(chan int)
-	quit:= make(chan int)
+	e:=make(chan int)
+	o := make(chan int)
+	f := make(chan int)
+	go send_F(e,o)
+	
+	go recieve_F(e,o,f)
 
-	//Send the Data trought the chanel
-	go send(eve,odd,quit)
-	//Recieve the data trough the data
-	recieve(eve,odd,quit)
-
-	fmt.Println("The program is about to exit")
+	for v:= range f{
+		fmt.Println("This is the Value",v)
+	}
 }
 ///////////////TODO: Ej1 TODO:///////////////////
 type person struct{
@@ -80,9 +81,9 @@ func recieve(e,o,q <-chan int){
 		case v:= <-e:
 			fmt.Println("From the eve channel:",v)
 		case v:= <-o:
-			fmt.Println("From the eve channel:",v)
+			fmt.Println("From the odd channel:",v)
 		case v:= <-q:
-			fmt.Println("From the eve channel:",v)
+			fmt.Println("From the quit channel:",v)
 			return 
 		}
 	}
@@ -96,4 +97,56 @@ func send(e,o,q chan<-int){
 			}
 	}
 	q<-0	
+}
+//FIXME: The comma statement
+//Is to check if the channel is still open//
+func checOk(){
+	x:= make(chan int)
+	go func ()  {
+		x<-100	
+	}()
+	v, ok := <-x
+
+	fmt.Println("This is the value in X:",v)
+	close(x)
+	fmt.Println("This is the state of X:",ok)
+
+	//Now reasign the values to the chanels 
+	v ,ok= <-x
+	fmt.Println("This is the new Values in the Chanels:",v)
+	fmt.Println("This is the state of the new Chanels:",ok) 
+}
+//FIXME: FAN IN || FAN OUT
+//Send Chanel
+func send_F(e,o chan<-int){
+	for i:= 0;i <100;i++{
+		if i%2==0{
+			e<-i
+			}else{
+				o<-i
+			}
+	}
+	close(e)
+	close(o)
+}	
+//Recievee Chanel
+func recieve_F(e,o <-chan int, fanin chan<- int){
+	var wg sync.WaitGroup
+	wg.Add(2)
+
+	go func(){
+		for v:= range e{
+			fanin<-v
+		}
+		wg.Done()
+	}()
+	go func(){
+		for v := range o{
+			fanin<-v
+		}
+		wg.Done()
+	}()
+	wg.Wait()
+	close(fanin)
+
 }
